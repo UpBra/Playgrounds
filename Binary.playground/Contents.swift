@@ -58,64 +58,132 @@ extension String {
 }
 
 
-enum Bit: UInt8, CustomStringConvertible {
-    case zero, one
+extension FixedWidthInteger {
 
-    var description: String {
-        switch self {
-        case .one:
-            return "1"
-        case .zero:
-            return "0"
-        }
-    }
+	var binaryRepresentation: String {
+		let result = String.binaryRepresentation(of: self)
+
+		return result
+	}
 }
-
-
-func bits(fromByte byte: UInt8) -> [Bit] {
-    var byte = byte
-    var bits = [Bit](repeating: .zero, count: 8)
-	for i in 0..<8 {
-        let currentBit = byte & 0x01
-        if currentBit != 0 {
-            bits[i] = .one
-        }
-
-        byte >>= 1
-    }
-
-	let reversed = Array(bits.reversed())
-
-    return reversed
-}
-
 
 let sasha = RGBA32(red: 130, green: 130, blue: 130, alpha: 1)
-let character = Character("a")
+let character = Character("f")
 let decimal = character.utf8.map { $0 }
 let firstCharacter = decimal.first!
 
-print("130 bits:\t\t", String.binaryRepresentation(of: sasha.redComponent))
-print("the a bits:\t\t", String.binaryRepresentation(of: firstCharacter))
+print("sasha.red:\t\t\t", sasha.redComponent.binaryRepresentation)
+print("character.a:\t\t", firstCharacter.binaryRepresentation)
 
-// clear out the 2 least significat digits from our byte
+// clear out the 2 least significant digits from our byte
 let maeby = (sasha.redComponent >> 2) << 2
 
 // clear out the 6 most significant digits from our character byte
 let firstBits = (firstCharacter << 6) >> 6
 
 // now an OR operation will take the 6 most signficant bits from our color byte and the 2 least significant bits from our character byte
-let result = maeby | firstBits
-print("result:\t\t\t", String.binaryRepresentation(of: result))
+let newRed = maeby | firstBits
+print("newRed:\t\t\t\t", newRed.binaryRepresentation)
 
 
-/*
-	So. I can take take bits from a character and inject them into the LSB of my color byte
-*/
+let secondBits = (firstCharacter << 4) >> 6
+var newGreen = (sasha.greenComponent >> 2) << 2
+newGreen |= secondBits
+print("newGreen:\t\t\t", newGreen.binaryRepresentation)
+
+
+let thirdBits = (firstCharacter << 2) >> 6
+var newBlue = (sasha.blueComponent >> 2) << 2
+newBlue |= thirdBits
+print("newBlue:\t\t\t", newBlue.binaryRepresentation)
+
+
+let fourthBits = firstCharacter >> 6
+var newAlpha = (sasha.alphaComponent >> 2) << 2
+newAlpha |= fourthBits
+print("newAlpha:\t\t\t", newAlpha.binaryRepresentation)
 
 
 // MARK: - Given an RGBA lets get a character out of it.
 
+extension RGBA32 {
+
+	var characterByte: UInt8 {
+		var byte = UInt8(0)
+
+		let red = (redComponent << 6) >> 6
+		let green = (greenComponent << 6) >> 6
+		let blue = (blueComponent << 6) >> 6
+		let alpha = (alphaComponent << 6) >> 6
+
+		byte |= alpha
+		byte <<= 2
+
+		byte |= blue
+		byte <<= 2
+
+		byte |= green
+		byte <<= 2
+
+		byte |= red
+
+		return byte
+	}
+
+	func encoded(withByte byte: UInt8) -> RGBA32 {
+		let firstBits = (byte << 6) >> 6
+		var newRed = (redComponent >> 2) << 2
+		newRed |= firstBits
+
+		let secondBits = (byte << 4) >> 6
+		var newGreen = (greenComponent >> 2) << 2
+		newGreen |= secondBits
+
+		let thirdBits = (byte << 2) >> 6
+		var newBlue = (blueComponent >> 2) << 2
+		newBlue |= thirdBits
+
+		let fourthBits = byte >> 6
+		var newAlpha = (alphaComponent >> 2) << 2
+		newAlpha |= fourthBits
+
+		let result = RGBA32(red: newRed, green: newGreen, blue: newBlue, alpha: newAlpha)
+
+		return result
+	}
+}
+
+let encodedColor = RGBA32(red: newRed, green: newGreen, blue: newBlue, alpha: newAlpha)
+let theEncodedByte = encodedColor.characterByte
+print("character in sasha: ", theEncodedByte.binaryRepresentation)
+
+let data = Data(bytes: [theEncodedByte], count: 1)
+let string = String(data: data, encoding: .utf8)
+print(string)
+
+
+let anotherTest = sasha.encoded(withByte: firstCharacter)
+print("anotherTest:\t\t", anotherTest.characterByte.binaryRepresentation)
+let anotherData = Data(bytes: [anotherTest.characterByte], count: 1)
+let anotherString = String(data: anotherData, encoding: .utf8)
+print(anotherString)
+
+
 // MARK: - Given a string of characters - inject them into RGBA
+
+let testString = "Hello, World 🤷‍♂️"
+let testBytes = testString.utf8.map { $0 }
+var colors = [RGBA32]()
+
+for byte in testBytes {
+	let red = RGBA32.red
+	let encodedRed = red.encoded(withByte: byte)
+	colors.append(encodedRed)
+}
+
+let decodedBytes = colors.map { $0.characterByte }
+let decodedData = Data(bytes: decodedBytes, count: decodedBytes.count)
+let decodedString = String(data: decodedData, encoding: .utf8)
+print(decodedString)
 
 // MARK: -
