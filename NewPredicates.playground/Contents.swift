@@ -13,6 +13,8 @@ class Foo: NSManagedObject, CoreDataModel {
     @NSManaged var first: String?
     @NSManaged var favorite: Bool
     @NSManaged var birthday: Date
+
+    @NSManaged var bar: Foo?
 }
 
 
@@ -20,11 +22,25 @@ class Foo: NSManagedObject, CoreDataModel {
 
 extension CoreDataModel {
 
-    static func predicate<Value>(_ kp: KeyPath<Self, Value>, _ op: NSComparisonPredicate.Operator, _ value: Value?) -> NSPredicate {
+    static func predicate<Value>(_ kp: KeyPath<Self, Value>, _ op: NSComparisonPredicate.Operator, _ value: Any?) -> NSPredicate {
         let ex1 = \Self.self == kp ? NSExpression.expressionForEvaluatedObject() : NSExpression(forKeyPath: kp)
         let ex2 = NSExpression(forConstantValue: value)
 
         return NSComparisonPredicate(leftExpression: ex1, rightExpression: ex2, modifier: .direct, type: op)
+    }
+
+    static func any<Value>(_ kp: KeyPath<Self, Value>, _ op: NSComparisonPredicate.Operator, _ value: Any?) -> NSPredicate {
+        let ex1 = \Self.self == kp ? NSExpression.expressionForEvaluatedObject() : NSExpression(forKeyPath: kp)
+        let ex2 = NSExpression(forConstantValue: value)
+
+        return NSComparisonPredicate(leftExpression: ex1, rightExpression: ex2, modifier: .any, type: op)
+    }
+
+    static func all<Value>(_ kp: KeyPath<Self, Value>, _ op: NSComparisonPredicate.Operator, _ value: Any?) -> NSPredicate {
+        let ex1 = \Self.self == kp ? NSExpression.expressionForEvaluatedObject() : NSExpression(forKeyPath: kp)
+        let ex2 = NSExpression(forConstantValue: value)
+
+        return NSComparisonPredicate(leftExpression: ex1, rightExpression: ex2, modifier: .all, type: op)
     }
 }
 
@@ -65,7 +81,29 @@ func testDateRange() {
     printPredicates(old: old, new: new)
 }
 
+func testIn() {
+    let array = ["bob", "sally"]
+    let old = NSPredicate(format: "%K IN %@", #keyPath(Foo.first), array)
+    let new = Foo.predicate(\.first, .in, array)
+    printPredicates(old: old, new: new)
+}
+
+func testContains() {
+    let array = ["bob", "sally"]
+    let old = NSPredicate(format: "%K IN %@", #keyPath(Foo.first), array)
+    let new = Foo.predicate(\.first, .in, array)
+
+    let bad = Foo.predicate(\.first, .in, "hello")
+
+    printPredicates(old: old, new: new)
+}
+
 testStrings()
 testBools()
 testDates()
 testDateRange()
+testIn()
+
+
+let pred = Foo.any(\.bar?.first, .equalTo, "bob")
+print(pred)

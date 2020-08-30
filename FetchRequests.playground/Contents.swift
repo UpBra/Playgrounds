@@ -68,4 +68,5 @@ let fooRequest = NSFetchRequest<Foo>(first: "bob")
 print(fooRequest)
 
 
-let request = NSFetchRequest<Bar>
+let barRequest = NSFetchRequest<Bar>(identifier: "1")
+print(barRequest)
